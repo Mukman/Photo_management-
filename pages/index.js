@@ -1,12 +1,12 @@
-import { useEffect, useState } from 'react';
-import Head from 'next/head';
+import { useEffect, useState } from "react";
+import Head from "next/head";
 import {
   motion,
   AnimatePresence,
   useMotionValue,
   useTransform,
   useSpring,
-} from 'framer-motion';
+} from "framer-motion";
 
 function TiltFrame({ photo, index, onOpen }) {
   const x = useMotionValue(0.5);
@@ -39,7 +39,10 @@ function TiltFrame({ photo, index, onOpen }) {
       role="button"
       aria-label={`Open photo ${index + 1}`}
       onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(index); }
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen(index);
+        }
       }}
     >
       <motion.div layoutId={`photo-${photo.id}`} style={styles.frameInner}>
@@ -64,7 +67,7 @@ export default function Home() {
   const [current, setCurrent] = useState(null); // index of open photo, or null
 
   useEffect(() => {
-    fetch('/api/photos')
+    fetch("/api/photos", { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => setPhotos(data.photos || []))
       .catch(() => setPhotos([]))
@@ -72,19 +75,22 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    document.body.style.overflow = current !== null ? 'hidden' : '';
-    return () => { document.body.style.overflow = ''; };
+    document.body.style.overflow = current !== null ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
   }, [current]);
 
   useEffect(() => {
     function onKey(e) {
       if (current === null) return;
-      if (e.key === 'Escape') setCurrent(null);
-      if (e.key === 'ArrowRight') setCurrent((c) => (c + 1) % photos.length);
-      if (e.key === 'ArrowLeft') setCurrent((c) => (c - 1 + photos.length) % photos.length);
+      if (e.key === "Escape") setCurrent(null);
+      if (e.key === "ArrowRight") setCurrent((c) => (c + 1) % photos.length);
+      if (e.key === "ArrowLeft")
+        setCurrent((c) => (c - 1 + photos.length) % photos.length);
     }
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
   }, [current, photos.length]);
 
   function handleDragEnd(e, info) {
@@ -118,14 +124,20 @@ export default function Home() {
         ) : (
           <div style={styles.grid}>
             {photos.map((photo, i) => (
-              <TiltFrame key={photo.id} photo={photo} index={i} onOpen={setCurrent} />
+              <TiltFrame
+                key={photo.id}
+                photo={photo}
+                index={i}
+                onOpen={setCurrent}
+              />
             ))}
           </div>
         )}
       </main>
 
       <footer style={styles.footer}>
-        Tap any photo to view full size &middot; swipe or use arrow keys to browse
+        Tap any photo to view full size &middot; swipe or use arrow keys to
+        browse
       </footer>
 
       <AnimatePresence>
@@ -135,7 +147,9 @@ export default function Home() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={(e) => { if (e.target === e.currentTarget) setCurrent(null); }}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setCurrent(null);
+            }}
           >
             <motion.div
               key={activePhoto.id}
@@ -148,7 +162,7 @@ export default function Home() {
               initial={{ rotateY: -20, rotateX: 10 }}
               animate={{ rotateY: 0, rotateX: 0 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              transition={{ type: 'spring', stiffness: 260, damping: 28 }}
+              transition={{ type: "spring", stiffness: 260, damping: 28 }}
             >
               <picture>
                 <source srcSet={activePhoto.fullWebp} type="image/webp" />
@@ -162,27 +176,57 @@ export default function Home() {
             </motion.div>
 
             <button
-              style={{ ...styles.navBtn, top: 16, right: 16, borderRadius: '50%', width: 42, height: 42, fontSize: 22 }}
+              style={{
+                ...styles.navBtn,
+                top: 16,
+                right: 16,
+                borderRadius: "50%",
+                width: 42,
+                height: 42,
+                fontSize: 22,
+              }}
               onClick={() => setCurrent(null)}
               aria-label="Close"
             >
               &times;
             </button>
             <button
-              style={{ ...styles.navBtn, left: 12, top: '50%', transform: 'translateY(-50%)', borderRadius: '50%', width: 46, height: 46, fontSize: 20 }}
-              onClick={() => setCurrent((c) => (c - 1 + photos.length) % photos.length)}
+              style={{
+                ...styles.navBtn,
+                left: 12,
+                top: "50%",
+                transform: "translateY(-50%)",
+                borderRadius: "50%",
+                width: 46,
+                height: 46,
+                fontSize: 20,
+              }}
+              onClick={() =>
+                setCurrent((c) => (c - 1 + photos.length) % photos.length)
+              }
               aria-label="Previous"
             >
               &#10094;
             </button>
             <button
-              style={{ ...styles.navBtn, right: 12, top: '50%', transform: 'translateY(-50%)', borderRadius: '50%', width: 46, height: 46, fontSize: 20 }}
+              style={{
+                ...styles.navBtn,
+                right: 12,
+                top: "50%",
+                transform: "translateY(-50%)",
+                borderRadius: "50%",
+                width: 46,
+                height: 46,
+                fontSize: 20,
+              }}
               onClick={() => setCurrent((c) => (c + 1) % photos.length)}
               aria-label="Next"
             >
               &#10095;
             </button>
-            <div style={styles.counter}>{current + 1} / {photos.length}</div>
+            <div style={styles.counter}>
+              {current + 1} / {photos.length}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -192,72 +236,77 @@ export default function Home() {
 
 const styles = {
   header: {
-    padding: '56px 24px 36px',
-    textAlign: 'center',
-    borderBottom: '1px solid #2c2a27',
+    padding: "56px 24px 36px",
+    textAlign: "center",
+    borderBottom: "1px solid #2c2a27",
     fontFamily: "'Iowan Old Style','Palatino Linotype',Georgia,serif",
   },
-  h1: { margin: 0, fontSize: 'clamp(26px,6vw,44px)', fontWeight: 500 },
-  tagline: { margin: '12px 0 0', color: '#9a938a', fontSize: 14 },
-  main: { maxWidth: 1100, margin: '0 auto', padding: '32px 12px 80px' },
-  status: { textAlign: 'center', color: '#9a938a', padding: '40px 0' },
+  h1: { margin: 0, fontSize: "clamp(26px,6vw,44px)", fontWeight: 500 },
+  tagline: { margin: "12px 0 0", color: "#9a938a", fontSize: 14 },
+  main: { maxWidth: 1100, margin: "0 auto", padding: "32px 12px 80px" },
+  status: { textAlign: "center", color: "#9a938a", padding: "40px 0" },
   grid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
     gap: 6,
   },
   frame: {
-    position: 'relative',
-    aspectRatio: '1 / 1',
-    cursor: 'pointer',
+    position: "relative",
+    aspectRatio: "1 / 1",
+    cursor: "pointer",
   },
   frameInner: {
-    width: '100%',
-    height: '100%',
-    overflow: 'hidden',
-    background: '#1a1918',
+    width: "100%",
+    height: "100%",
+    overflow: "hidden",
+    background: "#1a1918",
     borderRadius: 2,
   },
-  img: { width: '100%', height: '100%', objectFit: 'cover', display: 'block' },
+  img: { width: "100%", height: "100%", objectFit: "cover", display: "block" },
   footer: {
-    textAlign: 'center',
-    padding: '32px 16px 48px',
-    color: '#9a938a',
+    textAlign: "center",
+    padding: "32px 16px 48px",
+    color: "#9a938a",
     fontSize: 13,
   },
   lightbox: {
-    position: 'fixed',
+    position: "fixed",
     inset: 0,
-    background: 'rgba(9,8,7,0.97)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+    background: "rgba(9,8,7,0.97)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
     zIndex: 100,
   },
   stage: {
-    maxWidth: '86vw',
-    maxHeight: '80vh',
-    cursor: 'grab',
+    maxWidth: "86vw",
+    maxHeight: "80vh",
+    cursor: "grab",
   },
-  slideImg: { maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain', display: 'block' },
+  slideImg: {
+    maxWidth: "100%",
+    maxHeight: "80vh",
+    objectFit: "contain",
+    display: "block",
+  },
   navBtn: {
-    position: 'absolute',
-    color: '#ece7e0',
-    background: 'rgba(255,255,255,0.06)',
-    border: 'none',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+    position: "absolute",
+    color: "#ece7e0",
+    background: "rgba(255,255,255,0.06)",
+    border: "none",
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
     zIndex: 101,
   },
   counter: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 20,
-    left: '50%',
-    transform: 'translateX(-50%)',
+    left: "50%",
+    transform: "translateX(-50%)",
     fontSize: 13,
-    color: '#9a938a',
+    color: "#9a938a",
     zIndex: 101,
   },
 };
