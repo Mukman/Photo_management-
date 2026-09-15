@@ -17,6 +17,7 @@ export default function Dashboard() {
   const [message, setMessage] = useState("");
   const [deletingId, setDeletingId] = useState(null);
   const fileInputRef = useRef(null);
+  const folderInputRef = useRef(null);
   const router = useRouter();
 
   async function loadPhotos() {
@@ -32,8 +33,9 @@ export default function Dashboard() {
   }, []);
 
   async function handleUpload(e) {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
+    const rawFiles = Array.from(e.target.files || []);
+    const files = rawFiles.filter((f) => f.type.startsWith("image/"));
+    if (files.length === 0) return;
 
     setUploading(true);
     setMessage("");
@@ -59,6 +61,7 @@ export default function Dashboard() {
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
+      if (folderInputRef.current) folderInputRef.current.value = "";
     }
   }
 
@@ -101,18 +104,41 @@ export default function Dashboard() {
         </div>
 
         <div style={styles.uploadBox}>
-          <label style={styles.uploadLabel}>
-            {uploading ? "Uploading…" : "+ Add photos"}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handleUpload}
-              disabled={uploading}
-              style={{ display: "none" }}
-            />
-          </label>
+          <div
+            style={{
+              display: "flex",
+              gap: 10,
+              justifyContent: "center",
+              flexWrap: "wrap",
+            }}
+          >
+            <label style={styles.uploadLabel}>
+              {uploading ? "Uploading…" : "+ Add photos"}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleUpload}
+                disabled={uploading}
+                style={{ display: "none" }}
+              />
+            </label>
+            <label style={styles.uploadLabelSecondary}>
+              {uploading ? "Uploading…" : "+ Add a folder"}
+              <input
+                ref={folderInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                webkitdirectory=""
+                directory=""
+                onChange={handleUpload}
+                disabled={uploading}
+                style={{ display: "none" }}
+              />
+            </label>
+          </div>
           {message && <p style={styles.message}>{message}</p>}
         </div>
 
@@ -182,6 +208,17 @@ const styles = {
     display: "inline-block",
     background: "#c9a15a",
     color: "#121110",
+    fontWeight: 600,
+    padding: "12px 20px",
+    borderRadius: 8,
+    cursor: "pointer",
+    fontSize: 15,
+  },
+  uploadLabelSecondary: {
+    display: "inline-block",
+    background: "transparent",
+    border: "1px solid #c9a15a",
+    color: "#c9a15a",
     fontWeight: 600,
     padding: "12px 20px",
     borderRadius: 8,
