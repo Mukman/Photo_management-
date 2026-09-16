@@ -46,27 +46,42 @@ export default function ManageAlbum({ album }) {
     );
     if (files.length === 0) return;
 
+    const MAX_SIZE = 4 * 1024 * 1024; // 4MB — stays safely under Vercel's per-request limit
+    const tooLarge = files.filter((f) => f.size > MAX_SIZE);
+    const toUpload = files.filter((f) => f.size <= MAX_SIZE);
+
     setUploading(true);
     setMessage('');
-    const formData = new FormData();
-    for (const file of files) formData.append('photos', file);
 
-    try {
-      const res = await fetch(`/api/albums/${album.id}/photos`, { method: 'POST', body: formData });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok) {
-        setMessage(`Uploaded ${files.length} photo${files.length > 1 ? 's' : ''}.`);
-        await loadPhotos();
-      } else {
-        setMessage(data.error || 'Upload failed.');
+    let succeeded = 0;
+    let failed = 0;
+
+    for (let i = 0; i < toUpload.length; i++) {
+      const file = toUpload[i];
+      setMessage(`Uploading ${i + 1} of ${toUpload.length}…`);
+      const formData = new FormData();
+      formData.append('photos', file);
+      try {
+        const res = await fetch(`/api/albums/${album.id}/photos`, { method: 'POST', body: formData });
+        if (res.ok) {
+          succeeded += 1;
+        } else {
+          failed += 1;
+        }
+      } catch (err) {
+        failed += 1;
       }
-    } catch (err) {
-      setMessage('Upload failed. Check your connection.');
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      if (folderInputRef.current) folderInputRef.current.value = '';
     }
+
+    let summary = `Uploaded ${succeeded} photo${succeeded === 1 ? '' : 's'}.`;
+    if (failed > 0) summary += ` ${failed} failed.`;
+    if (tooLarge.length > 0) summary += ` ${tooLarge.length} skipped (over 4MB — try exporting at a smaller size).`;
+    setMessage(summary);
+
+    await loadPhotos();
+    setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    if (folderInputRef.current) folderInputRef.current.value = '';
   }
 
   async function handleDelete(photoId) {

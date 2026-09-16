@@ -85,7 +85,7 @@ export default async function handler(req, res) {
   if (req.method === 'POST') {
     const form = formidable({
       multiples: true,
-      maxFileSize: 40 * 1024 * 1024, // 40MB — HEIC originals can be large
+      maxFileSize: 4.4 * 1024 * 1024, // Vercel serverless functions cap request bodies at ~4.5MB
     });
 
     let files;
