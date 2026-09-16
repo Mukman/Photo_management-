@@ -1,79 +1,73 @@
-import { useEffect, useState, useRef } from "react";
-import { useRouter } from "next/router";
-import Head from "next/head";
-import { isAuthenticated } from "../../lib/auth";
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
+import Head from 'next/head';
+import { isAuthenticated } from '../../lib/auth';
 
 export async function getServerSideProps({ req }) {
   if (!isAuthenticated(req)) {
-    return { redirect: { destination: "/admin", permanent: false } };
+    return { redirect: { destination: '/admin', permanent: false } };
   }
   return { props: {} };
 }
 
 export default function Dashboard() {
-  const [photos, setPhotos] = useState([]);
+  const [albums, setAlbums] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
-  const [message, setMessage] = useState("");
+  const [newTitle, setNewTitle] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [message, setMessage] = useState('');
   const [deletingId, setDeletingId] = useState(null);
-  const fileInputRef = useRef(null);
-  const folderInputRef = useRef(null);
+  const [origin, setOrigin] = useState('');
   const router = useRouter();
 
-  async function loadPhotos() {
+  useEffect(() => {
+    setOrigin(window.location.origin);
+  }, []);
+
+  async function loadAlbums() {
     setLoading(true);
-    const res = await fetch("/api/photos", { cache: "no-store" });
+    const res = await fetch('/api/albums', { cache: 'no-store' });
     const data = await res.json();
-    setPhotos(data.photos || []);
+    setAlbums(data.albums || []);
     setLoading(false);
   }
 
-  useEffect(() => {
-    loadPhotos();
-  }, []);
+  useEffect(() => { loadAlbums(); }, []);
 
-  async function handleUpload(e) {
-    const rawFiles = Array.from(e.target.files || []);
-    const files = rawFiles.filter((f) => f.type.startsWith("image/"));
-    if (files.length === 0) return;
-
-    setUploading(true);
-    setMessage("");
-    const formData = new FormData();
-    for (const file of files) formData.append("photos", file);
-
+  async function handleCreate(e) {
+    e.preventDefault();
+    if (!newTitle.trim()) return;
+    setCreating(true);
+    setMessage('');
     try {
-      const res = await fetch("/api/photos/upload", {
-        method: "POST",
-        body: formData,
+      const res = await fetch('/api/albums', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: newTitle.trim() }),
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        setMessage(
-          `Uploaded ${files.length} photo${files.length > 1 ? "s" : ""}.`,
-        );
-        await loadPhotos();
+        setNewTitle('');
+        await loadAlbums();
       } else {
-        setMessage(data.error || "Upload failed.");
+        setMessage(data.error || 'Failed to create album.');
       }
     } catch (err) {
-      setMessage("Upload failed. Check your connection.");
+      setMessage('Failed to create album.');
     } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      if (folderInputRef.current) folderInputRef.current.value = "";
+      setCreating(false);
     }
   }
 
-  async function handleDelete(id) {
-    if (!confirm("Delete this photo? This cannot be undone.")) return;
+  async function handleDelete(id, title) {
+    if (!confirm(`Delete "${title}" and all its photos? This cannot be undone.`)) return;
     setDeletingId(id);
     try {
-      const res = await fetch(`/api/photos/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/albums/${id}`, { method: 'DELETE' });
       if (res.ok) {
-        setPhotos((prev) => prev.filter((p) => p.id !== id));
+        setAlbums((prev) => prev.filter((a) => a.id !== id));
       } else {
-        setMessage("Failed to delete photo.");
+        setMessage('Failed to delete album.');
       }
     } finally {
       setDeletingId(null);
@@ -81,84 +75,76 @@ export default function Dashboard() {
   }
 
   async function handleLogout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/admin");
+    await fetch('/api/auth/logout', { method: 'POST' });
+    router.push('/admin');
+  }
+
+  function copyLink(slug) {
+    const url = `${origin}/album/${slug}`;
+    navigator.clipboard?.writeText(url);
+    setMessage('Link copied.');
+    setTimeout(() => setMessage(''), 2000);
   }
 
   return (
     <>
-      <Head>
-        <title>Admin Dashboard</title>
-      </Head>
+      <Head><title>Admin Dashboard</title></Head>
       <div style={styles.page}>
         <div style={styles.topbar}>
-          <h1 style={styles.h1}>Manage Photos</h1>
-          <div style={{ display: "flex", gap: 10 }}>
-            <a href="/" target="_blank" rel="noreferrer" style={styles.linkBtn}>
-              View gallery
-            </a>
-            <button onClick={handleLogout} style={styles.logoutBtn}>
-              Log out
-            </button>
-          </div>
+          <h1 style={styles.h1}>Albums</h1>
+          <button onClick={handleLogout} style={styles.logoutBtn}>Log out</button>
         </div>
 
-        <div style={styles.uploadBox}>
-          <div
-            style={{
-              display: "flex",
-              gap: 10,
-              justifyContent: "center",
-              flexWrap: "wrap",
-            }}
-          >
-            <label style={styles.uploadLabel}>
-              {uploading ? "Uploading…" : "+ Add photos"}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handleUpload}
-                disabled={uploading}
-                style={{ display: "none" }}
-              />
-            </label>
-            <label style={styles.uploadLabelSecondary}>
-              {uploading ? "Uploading…" : "+ Add a folder"}
-              <input
-                ref={folderInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                webkitdirectory=""
-                directory=""
-                onChange={handleUpload}
-                disabled={uploading}
-                style={{ display: "none" }}
-              />
-            </label>
-          </div>
-          {message && <p style={styles.message}>{message}</p>}
-        </div>
+        <form onSubmit={handleCreate} style={styles.createBox}>
+          <input
+            style={styles.input}
+            placeholder="New album name (e.g. Addis Trip 2026)"
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            disabled={creating}
+          />
+          <button type="submit" style={styles.createBtn} disabled={creating || !newTitle.trim()}>
+            {creating ? 'Creating…' : '+ Create album'}
+          </button>
+        </form>
+        {message && <p style={styles.message}>{message}</p>}
 
         {loading ? (
           <p style={styles.status}>Loading…</p>
-        ) : photos.length === 0 ? (
-          <p style={styles.status}>No photos yet — add some above.</p>
+        ) : albums.length === 0 ? (
+          <p style={styles.status}>No albums yet — create one above.</p>
         ) : (
-          <div style={styles.grid}>
-            {photos.map((photo) => (
-              <div key={photo.id} style={styles.card}>
-                <img src={photo.thumbJpg} alt="" style={styles.thumb} />
-                <button
-                  onClick={() => handleDelete(photo.id)}
-                  disabled={deletingId === photo.id}
-                  style={styles.deleteBtn}
-                  aria-label="Delete photo"
-                >
-                  {deletingId === photo.id ? "…" : "🗑"}
-                </button>
+          <div style={styles.list}>
+            {albums.map((album) => (
+              <div key={album.id} style={styles.card}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={styles.cardTitle}>{album.title}</p>
+                  <p style={styles.cardLink}>{origin}/album/{album.slug}</p>
+                </div>
+                <div style={styles.cardActions}>
+                  <button style={styles.smallBtn} onClick={() => copyLink(album.slug)}>Copy link</button>
+                  <a
+                    href={`/admin/album/${album.id}`}
+                    style={{ ...styles.smallBtn, textDecoration: 'none', display: 'inline-block' }}
+                  >
+                    Manage
+                  </a>
+                  <a
+                    href={`/album/${album.slug}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ ...styles.smallBtn, textDecoration: 'none', display: 'inline-block' }}
+                  >
+                    View
+                  </a>
+                  <button
+                    style={styles.deleteBtn}
+                    onClick={() => handleDelete(album.id, album.title)}
+                    disabled={deletingId === album.id}
+                  >
+                    {deletingId === album.id ? '…' : 'Delete'}
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -169,93 +155,81 @@ export default function Dashboard() {
 }
 
 const styles = {
-  page: { maxWidth: 1000, margin: "0 auto", padding: "32px 16px 80px" },
+  page: { maxWidth: 800, margin: '0 auto', padding: '32px 16px 80px' },
   topbar: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 24,
-    flexWrap: "wrap",
-    gap: 12,
   },
   h1: { margin: 0, fontSize: 24, fontWeight: 600 },
-  linkBtn: {
-    background: "transparent",
-    border: "1px solid #2c2a27",
-    borderRadius: 8,
-    padding: "8px 14px",
-    fontSize: 14,
-    textDecoration: "none",
-    color: "#ece7e0",
-  },
   logoutBtn: {
-    background: "transparent",
-    border: "1px solid #2c2a27",
+    background: 'transparent',
+    border: '1px solid #2c2a27',
     borderRadius: 8,
-    padding: "8px 14px",
+    padding: '8px 14px',
     fontSize: 14,
-    color: "#ece7e0",
-    cursor: "pointer",
+    color: '#ece7e0',
+    cursor: 'pointer',
   },
-  uploadBox: {
-    border: "1px dashed #2c2a27",
-    borderRadius: 12,
-    padding: 24,
-    textAlign: "center",
-    marginBottom: 32,
-  },
-  uploadLabel: {
-    display: "inline-block",
-    background: "#c9a15a",
-    color: "#121110",
-    fontWeight: 600,
-    padding: "12px 20px",
-    borderRadius: 8,
-    cursor: "pointer",
-    fontSize: 15,
-  },
-  uploadLabelSecondary: {
-    display: "inline-block",
-    background: "transparent",
-    border: "1px solid #c9a15a",
-    color: "#c9a15a",
-    fontWeight: 600,
-    padding: "12px 20px",
-    borderRadius: 8,
-    cursor: "pointer",
-    fontSize: 15,
-  },
-  message: { marginTop: 12, color: "#9a938a", fontSize: 14 },
-  status: { color: "#9a938a", textAlign: "center", padding: "40px 0" },
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
+  createBox: {
+    display: 'flex',
     gap: 10,
+    flexWrap: 'wrap',
+    marginBottom: 8,
   },
-  card: {
-    position: "relative",
-    aspectRatio: "1 / 1",
+  input: {
+    flex: 1,
+    minWidth: 200,
+    background: '#1a1918',
+    border: '1px solid #2c2a27',
     borderRadius: 8,
-    overflow: "hidden",
-    background: "#1a1918",
+    padding: '10px 12px',
+    color: '#ece7e0',
+    fontSize: 15,
   },
-  thumb: {
-    width: "100%",
-    height: "100%",
-    objectFit: "cover",
-    display: "block",
+  createBtn: {
+    background: '#c9a15a',
+    color: '#121110',
+    border: 'none',
+    borderRadius: 8,
+    padding: '10px 18px',
+    fontSize: 15,
+    fontWeight: 600,
+    cursor: 'pointer',
+  },
+  message: { color: '#9a938a', fontSize: 14, marginTop: 4, marginBottom: 20 },
+  status: { color: '#9a938a', textAlign: 'center', padding: '40px 0' },
+  list: { display: 'flex', flexDirection: 'column', gap: 10, marginTop: 24 },
+  card: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    background: '#1a1918',
+    border: '1px solid #2c2a27',
+    borderRadius: 10,
+    padding: '14px 16px',
+    flexWrap: 'wrap',
+  },
+  cardTitle: { margin: 0, fontWeight: 600, fontSize: 16 },
+  cardLink: { margin: '4px 0 0', fontSize: 13, color: '#9a938a', wordBreak: 'break-all' },
+  cardActions: { display: 'flex', gap: 8, flexWrap: 'wrap' },
+  smallBtn: {
+    background: 'transparent',
+    border: '1px solid #2c2a27',
+    borderRadius: 6,
+    padding: '6px 10px',
+    fontSize: 13,
+    color: '#ece7e0',
+    cursor: 'pointer',
   },
   deleteBtn: {
-    position: "absolute",
-    top: 6,
-    right: 6,
-    background: "rgba(20,18,16,0.85)",
-    border: "none",
-    borderRadius: "50%",
-    width: 32,
-    height: 32,
-    color: "#ece7e0",
-    cursor: "pointer",
-    fontSize: 15,
+    background: 'transparent',
+    border: '1px solid #c25b4d',
+    borderRadius: 6,
+    padding: '6px 10px',
+    fontSize: 13,
+    color: '#c25b4d',
+    cursor: 'pointer',
   },
 };
