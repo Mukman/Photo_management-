@@ -45,10 +45,10 @@ export default function Dashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: newTitle.trim() }),
       });
-      const data = await res.json().catch(() => ({}));
+         const data = await res.json().catch(() => ({}));
       if (res.ok) {
         setNewTitle('');
-        await loadAlbums();
+        router.push(`/admin/album/${data.album.id}`);
       } else {
         setMessage(data.error || 'Failed to create album.');
       }
