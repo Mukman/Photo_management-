@@ -7,7 +7,26 @@ import {
   useMotionValue,
   useTransform,
   useSpring,
+  useAnimationControls,
 } from 'framer-motion';
+
+const gridVariants = {
+  hidden: {},
+  visible: {
+    transition: { staggerChildren: 0.06, delayChildren: 0.1 },
+  },
+};
+
+const entranceVariants = {
+  hidden: { opacity: 0, y: 34, scale: 0.82, rotateX: -28 },
+  visible: (index) => ({
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    rotateX: 0,
+    transition: { type: 'spring', stiffness: 150, damping: 16, delay: index * 0.03 },
+  }),
+};
 
 function TiltFrame({ photo, index, onOpen }) {
   const x = useMotionValue(0.5);
@@ -16,6 +35,8 @@ function TiltFrame({ photo, index, onOpen }) {
   const springConfig = { stiffness: 200, damping: 20 };
   const rotateX = useSpring(useTransform(y, [0, 1], [12, -12]), springConfig);
   const rotateY = useSpring(useTransform(x, [0, 1], [-12, 12]), springConfig);
+
+  const idleControls = useAnimationControls();
 
   function handlePointerMove(e) {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -28,32 +49,56 @@ function TiltFrame({ photo, index, onOpen }) {
     y.set(0.5);
   }
 
+  // After the entrance pop-in finishes, start a slow, automatic, gentle
+  // 3D wobble so photos feel alive even before anyone touches them.
+  function handleEntranceComplete() {
+    idleControls.start({
+      rotateZ: [0, 1.6, -1.6, 0],
+      y: [0, -3, 0, 2, 0],
+      transition: {
+        duration: 5 + (index % 4),
+        repeat: Infinity,
+        ease: 'easeInOut',
+        delay: (index % 5) * 0.3,
+      },
+    });
+  }
+
   return (
     <motion.div
-      style={{ ...styles.frame, rotateX, rotateY, transformPerspective: 800 }}
-      onPointerMove={handlePointerMove}
-      onPointerLeave={handlePointerLeave}
-      onClick={() => onOpen(index)}
-      whileHover={{ scale: 1.04 }}
-      whileTap={{ scale: 0.97 }}
-      tabIndex={0}
-      role="button"
-      aria-label={`Open photo ${index + 1}`}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(index); }
-      }}
+      custom={index}
+      variants={entranceVariants}
+      onAnimationComplete={handleEntranceComplete}
+      style={{ transformPerspective: 800 }}
     >
-      <motion.div layoutId={`photo-${photo.id}`} style={styles.frameInner}>
-        <picture>
-          <source srcSet={photo.thumbWebp} type="image/webp" />
-          <img
-            src={photo.thumbJpg}
-            alt={photo.caption || `Photo ${index + 1}`}
-            loading="lazy"
-            decoding="async"
-            style={styles.img}
-          />
-        </picture>
+      <motion.div animate={idleControls} style={{ transformPerspective: 800 }}>
+        <motion.div
+          style={{ ...styles.frame, rotateX, rotateY, transformPerspective: 800 }}
+          onPointerMove={handlePointerMove}
+          onPointerLeave={handlePointerLeave}
+          onClick={() => onOpen(index)}
+          whileHover={{ scale: 1.04 }}
+          whileTap={{ scale: 0.97 }}
+          tabIndex={0}
+          role="button"
+          aria-label={`Open photo ${index + 1}`}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(index); }
+          }}
+        >
+          <motion.div layoutId={`photo-${photo.id}`} style={styles.frameInner}>
+            <picture>
+              <source srcSet={photo.thumbWebp} type="image/webp" />
+              <img
+                src={photo.thumbJpg}
+                alt={photo.caption || `Photo ${index + 1}`}
+                loading="lazy"
+                decoding="async"
+                style={styles.img}
+              />
+            </picture>
+          </motion.div>
+        </motion.div>
       </motion.div>
     </motion.div>
   );
@@ -122,10 +167,15 @@ export default function AlbumPage() {
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       </Head>
 
-      <header style={styles.header}>
+      <motion.header
+        style={styles.header}
+        initial={{ opacity: 0, y: -16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: 'easeOut' }}
+      >
         <h1 style={styles.h1}>{title || 'Photo Album'}</h1>
         <p style={styles.tagline}>Scan. Look. Remember.</p>
-      </header>
+      </motion.header>
 
       <main style={styles.main}>
         {loading ? (
@@ -135,11 +185,16 @@ export default function AlbumPage() {
         ) : photos.length === 0 ? (
           <p style={styles.status}>No photos yet.</p>
         ) : (
-          <div style={styles.grid}>
+          <motion.div
+            style={styles.grid}
+            variants={gridVariants}
+            initial="hidden"
+            animate="visible"
+          >
             {photos.map((photo, i) => (
               <TiltFrame key={photo.id} photo={photo} index={i} onOpen={setCurrent} />
             ))}
-          </div>
+          </motion.div>
         )}
       </main>
 

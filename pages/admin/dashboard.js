@@ -45,7 +45,7 @@ export default function Dashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: newTitle.trim() }),
       });
-         const data = await res.json().catch(() => ({}));
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
         setNewTitle('');
         router.push(`/admin/album/${data.album.id}`);
